@@ -1,0 +1,187 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "nome": "João Silva",
+      "email": "joao@email.com",
+      "senha": "$2a$10$exemploDeSenhaHasheada",
+      "endereco": "Rua das Flores, 123",
+      "documento": "123.456.789-00",
+      "celular": "(11) 91234-5678",
+      "tipo": "cliente"
+    },
+    {
+      "id": 2,
+      "nome": "Hamburgueria da Casa",
+      "email": "hamburgueria@email.com",
+      "senha": "$2a$10$outroExemploHasheado",
+      "endereco": "Av. Central, 456",
+      "documento": "12.345.678/0001-90",
+      "celular": "(11) 90000-0000",
+      "tipo": "empresa"
+    },
+    {
+      "id": 99,
+      "nome": "Dev Admin",
+      "email": "admin@dev.com",
+      "senha": "$2a$10$adminHashed",
+      "endereco": "-",
+      "documento": "-",
+      "celular": "-",
+      "tipo": "desenvolvimento"
+    }
+  ],
+  "products": [
+    {
+      "id": 101,
+      "companyId": 2,
+      "name": "Cheeseburger",
+      "price": 15.99,
+      "description": "Hambúrguer com queijo, alface e tomate",
+      "image": "https://img.com/cheeseburger.jpg"
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Hamburguer",
+      "image": "https://img.com/hamburguer.jpg"
+    }
+  ],
+  "companies": [
+    {
+      "id": 2,
+      "name": "Hamburgueria da Casa",
+      "image": "https://img.com/logo.jpg",
+      "rating": 4.7,
+      "deliveryFee": 5.99,
+      "deliveryTime": "30-40 min",
+      "categories": ["Hamburguer"],
+      "dishes": []
+    }
+  ],
+  "favorites": [
+    {
+      "userId": 1,
+      "companyId": 2
+    }
+  ],
+  "coupons": [
+    {
+      "id": "1",
+      "code": "PRIMEIRA20",
+      "discount": "20%",
+      "description": "Desconto na primeira compra",
+      "minValue": 50,
+      "isActive": true
+    }
+  ],
+  "userCoupons": [
+    {
+      "id": "1",
+      "userId": 1,
+      "code": "PRIMEIRA20",
+      "discount": "20% OFF",
+      "description": "Desconto de 20% na primeira compra",
+      "validUntil": "2025-12-31",
+      "minValue": 50,
+      "isActive": true,
+      "price": 0,
+      "usesLeft": 1,
+      "maxUses": 1,
+      "purchased": false
+    }
+  ],
+  "addresses": [
+    {
+      "id": "a1",
+      "userId": 1,
+      "nome": "Casa",
+      "rua": "Rua das Flores",
+      "numero": "123",
+      "complemento": "",
+      "bairro": "Centro",
+      "cidade": "São Paulo",
+      "estado": "SP",
+      "cep": "01000-000",
+      "padrao": true
+    }
+  ],
+  "orders": [
+    {
+      "id": "p1",
+      "userId": 1,
+      "companyId": 2,
+      "addressId": "a1",
+      "paymentMethodId": "pm1",
+      "items": [
+        {
+          "productId": 101,
+          "name": "Cheeseburger",
+          "price": 15.99,
+          "quantity": 2,
+          "observation": "Sem cebola",
+          "addOns": []
+        }
+      ],
+      "total": 31.98,
+      "status": "entregue",
+      "createdAt": "2025-04-04T15:00:00Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "n1",
+      "userId": 1,
+      "title": "Seu pedido foi entregue!",
+      "message": "Obrigado por comprar com a gente!",
+      "type": "pedido",
+      "read": false,
+      "createdAt": "2025-04-04T15:30:00Z"
+    }
+  ],
+  "paymentMethods": [
+    {
+      "id": "pm1",
+      "userId": 1,
+      "nomeTitular": "João Silva",
+      "numeroCartao": "**** **** **** 1234",
+      "validade": "12/27",
+      "cvv": "***",
+      "tipo": "crédito"
+    }
+  ],
+  "carts": [],
+  "reviews": [
+    {
+      "id": "rev1",
+      "userId": 1,
+      "companyId": 2,
+      "orderId": "p1",
+      "rating": 5,
+      "comment": "Muito bom! Entrega rápida.",
+      "createdAt": "2025-04-04T16:00:00Z"
+    }
+  ],
+  "notificationSettings": [
+    {
+      "userId": 1,
+      "pedidos": {
+        "atualizacaoPedido": true,
+        "statusEntrega": true,
+        "alertaEntrega": true
+      },
+      "marketing": {
+        "promocoes": true,
+        "ofertasEspeciais": true
+      },
+      "sistema": {
+        "atualizacoesApp": true
+      },
+      "preferencias": {
+        "som": true,
+        "vibracao": true
+      }
+    }
+  ]
+}

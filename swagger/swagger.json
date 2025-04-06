@@ -1,0 +1,3196 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Delivery API",
+    "version": "1.0.0"
+  },
+  "basePath": "/api",
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Insira o token JWT no formato: Bearer {token}"
+    }
+  },
+  "tags": [
+    {
+      "name": "Usuários",
+      "description": "Gerenciamento de usuários"
+    },
+    {
+      "name": "Avaliações",
+      "description": "Avaliações feitas pelos usuários sobre os restaurantes"
+    },
+    {
+      "name": "Categorias",
+      "description": "Categorias de restaurantes"
+    },
+    {
+      "name": "Carrinho",
+      "description": "Gerenciamento do carrinho de compras do usuário"
+    },
+    {
+      "name": "Configurações de Notificações",
+      "description": "Preferências de notificação do usuário"
+    },
+    {
+      "name": "Cupons",
+      "description": "Gerenciamento dos cupons disponíveis no sistema"
+    },
+    {
+      "name": "Cupons do Usuário",
+      "description": "Gerenciamento de cupons vinculados a cada usuário logado"
+    },
+    {
+      "name": "Dashboard da Empresa",
+      "description": "Métricas e indicadores para o painel administrativo da empresa"
+    },
+    {
+      "name": "Endereços",
+      "description": "Gerenciamento de endereços por usuário"
+    },
+    {
+      "name": "Estoque",
+      "description": "Gerenciamento de estoque de produtos por empresa"
+    },
+    {
+      "name": "Funcionários",
+      "description": "Gerenciamento de funcionários da empresa (ex: motoboys, cozinheiros, gerentes)"
+    },
+    {
+      "name": "Pagamentos",
+      "description": "Cadastro de cartões de crédito e débito"
+    },
+    {
+      "name": "Produtos",
+      "description": "Cadastro e gerenciamento de produtos vinculados às empresas"
+    },
+    {
+      "name": "Pedidos",
+      "description": "Criação e histórico de pedidos do cliente"
+    },
+    {
+      "name": "Pedidos da Empresa",
+      "description": "Pedidos recebidos pelo restaurante/empresa logada"
+    },
+    {
+      "name": "Notificações",
+      "description": "Mensagens e alertas enviados ao usuário"
+    },
+    {
+      "name": "Recomendações",
+      "description": "Sugestões de produtos baseadas em favoritos e histórico de pedidos"
+    },
+    {
+      "name": "Autenticação",
+      "description": "Login de usuários"
+    },
+    {
+      "name": "Empresas",
+      "description": "Cadastro e gerenciamento de empresas (restaurantes, mercados, etc.)"
+    },
+    {
+      "name": "Favoritos",
+      "description": "Gerenciamento de empresas favoritas por usuário autenticado"
+    }
+  ],
+  "paths": {
+    "/stock": {
+      "get": {
+        "tags": [
+          "Estoque"
+        ],
+        "summary": "Listar estoque da empresa logada",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de produtos da empresa com estoque"
+          },
+          "403": {
+            "description": "Acesso negado"
+          }
+        }
+      }
+    },
+    "/stock/{productId}": {
+      "patch": {
+        "tags": [
+          "Estoque"
+        ],
+        "summary": "Atualizar quantidade de estoque de um produto",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "ID do produto"
+          },
+          {
+            "in": "body",
+            "name": "dados",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "estoque": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "estoque"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estoque atualizado com sucesso"
+          },
+          "400": {
+            "description": "Estoque inválido"
+          },
+          "404": {
+            "description": "Produto não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Estoque"
+        ],
+        "summary": "Remover produto do estoque (da empresa)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produto removido com sucesso"
+          },
+          "404": {
+            "description": "Produto não encontrado para esta empresa"
+          }
+        }
+      }
+    },
+    "/staff": {
+      "get": {
+        "tags": [
+          "Funcionários"
+        ],
+        "summary": "Listar todos os funcionários da empresa logada",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de funcionários",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "nome": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "telefone": {
+                    "type": "string"
+                  },
+                  "cargo": {
+                    "type": "string"
+                  },
+                  "placaVeiculo": {
+                    "type": "string"
+                  },
+                  "empresaId": {
+                    "type": "integer"
+                  },
+                  "ativo": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado (usuário não é empresa)"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Funcionários"
+        ],
+        "summary": "Cadastrar novo funcionário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "funcionario",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "nome": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "telefone": {
+                  "type": "string"
+                },
+                "cargo": {
+                  "type": "string",
+                  "description": "Exemplo: motoboy, cozinheiro, gerente"
+                },
+                "placaVeiculo": {
+                  "type": "string",
+                  "description": "Campo opcional, necessário apenas para motoboys"
+                }
+              },
+              "required": [
+                "nome",
+                "email",
+                "cargo"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Funcionário cadastrado com sucesso"
+          },
+          "400": {
+            "description": "Campos obrigatórios ausentes"
+          }
+        }
+      }
+    },
+    "/staff/{id}": {
+      "patch": {
+        "tags": [
+          "Funcionários"
+        ],
+        "summary": "Atualizar dados de um funcionário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "dadosAtualizados",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "nome": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "telefone": {
+                  "type": "string"
+                },
+                "cargo": {
+                  "type": "string"
+                },
+                "placaVeiculo": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Funcionário atualizado com sucesso"
+          },
+          "404": {
+            "description": "Funcionário não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Funcionários"
+        ],
+        "summary": "Desativar funcionário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Funcionário desativado com sucesso"
+          },
+          "404": {
+            "description": "Funcionário não encontrado"
+          }
+        }
+      }
+    },
+    "/company-dashboard/orders/total": {
+      "get": {
+        "tags": [
+          "Dashboard da Empresa"
+        ],
+        "summary": "Total de pedidos da empresa logada",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Número total de pedidos",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "totalPedidos": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado"
+          }
+        }
+      }
+    },
+    "/company-dashboard/orders/status-count": {
+      "get": {
+        "tags": [
+          "Dashboard da Empresa"
+        ],
+        "summary": "Contagem de pedidos por status",
+        "description": "Retorna a quantidade de pedidos agrupados por status (pendente, aceito, em preparo, saiu para entrega, entregue, cancelado).",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contagem dos pedidos por status",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "pendente": {
+                  "type": "integer"
+                },
+                "aceito": {
+                  "type": "integer"
+                },
+                "em preparo": {
+                  "type": "integer"
+                },
+                "saiu para entrega": {
+                  "type": "integer"
+                },
+                "entregue": {
+                  "type": "integer"
+                },
+                "cancelado": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado (usuário não é empresa)"
+          }
+        }
+      }
+    },
+    "/company-dashboard/total-sales": {
+      "get": {
+        "tags": [
+          "Dashboard da Empresa"
+        ],
+        "summary": "Faturamento da empresa nos últimos 30 dias",
+        "description": "Retorna o valor total de vendas com pedidos entregues nos últimos 30 dias.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Valor total vendido",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "totalVendas": {
+                  "type": "number",
+                  "format": "float"
+                },
+                "periodo": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado (usuário não é empresa)"
+          }
+        }
+      }
+    },
+    "/company-dashboard/ratings": {
+      "get": {
+        "tags": [
+          "Dashboard da Empresa"
+        ],
+        "summary": "Média de avaliação da empresa",
+        "description": "Retorna a nota média da empresa com base nas avaliações recebidas.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Média e total de avaliações recebidas",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "media": {
+                  "type": "number",
+                  "format": "float",
+                  "example": 4.7
+                },
+                "totalAvaliacoes": {
+                  "type": "integer",
+                  "example": 12
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado (usuário não é empresa)"
+          }
+        }
+      }
+    },
+    "/company-dashboard/top-products": {
+      "get": {
+        "tags": [
+          "Dashboard da Empresa"
+        ],
+        "summary": "Produtos mais vendidos da empresa",
+        "description": "Retorna uma lista dos produtos mais vendidos com base na quantidade em pedidos entregues.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de produtos ordenada por vendas",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "quantidadeVendida": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado (usuário não é empresa)"
+          }
+        }
+      }
+    },
+    "/recommendations": {
+      "get": {
+        "tags": [
+          "Recomendações"
+        ],
+        "summary": "Sugestões de produtos com base em favoritos e histórico",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de produtos recomendados"
+          }
+        }
+      }
+    },
+    "/notification-settings": {
+      "get": {
+        "tags": [
+          "Configurações de Notificações"
+        ],
+        "summary": "Obter configurações atuais do usuário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configurações retornadas com sucesso"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Configurações de Notificações"
+        ],
+        "summary": "Atualizar configurações de notificação do usuário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "config",
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configurações atualizadas"
+          }
+        }
+      }
+    },
+    "/notification-settings/reset": {
+      "post": {
+        "tags": [
+          "Configurações de Notificações"
+        ],
+        "summary": "Restaurar configurações de notificação para o padrão",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configurações restauradas com sucesso"
+          }
+        }
+      }
+    },
+    "/notifications/broadcast": {
+      "post": {
+        "tags": [
+          "Notificações"
+        ],
+        "summary": "Enviar notificação para todos os usuários (respeitando preferências)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "dados",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "pedido",
+                    "marketing",
+                    "sistema"
+                  ]
+                }
+              },
+              "required": [
+                "title",
+                "message",
+                "type"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Notificação enviada para todos os usuários que aceitaram o tipo"
+          },
+          "403": {
+            "description": "Acesso negado ou preferência não permitida"
+          }
+        }
+      }
+    },
+    "/reviews": {
+      "post": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Enviar uma avaliação após entrega",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "review",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "orderId": {
+                  "type": "string"
+                },
+                "companyId": {
+                  "type": "integer"
+                },
+                "rating": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5
+                },
+                "comment": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "orderId",
+                "companyId",
+                "rating"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Avaliação registrada com sucesso"
+          },
+          "400": {
+            "description": "Erro de validação ou já avaliado"
+          }
+        }
+      }
+    },
+    "/reviews/company/{companyId}": {
+      "get": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Listar avaliações públicas de uma empresa",
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Avaliações da empresa"
+          }
+        }
+      }
+    },
+    "/reviews/my": {
+      "get": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Listar minhas avaliações",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Avaliações do usuário logado"
+          }
+        }
+      }
+    },
+    "/reviews/my-company": {
+      "get": {
+        "tags": [
+          "Avaliações"
+        ],
+        "summary": "Listar avaliações recebidas pela empresa logada",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Avaliações da empresa retornadas com sucesso"
+          },
+          "403": {
+            "description": "Acesso negado (não é empresa)"
+          }
+        }
+      }
+    },
+    "/cart": {
+      "get": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Obter carrinho do usuário logado",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Carrinho do usuário retornado com sucesso"
+          },
+          "401": {
+            "description": "Token não enviado"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Adicionar item ao carrinho",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "item",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "companyId": {
+                  "type": "integer"
+                },
+                "productId": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "quantity": {
+                  "type": "integer"
+                },
+                "observation": {
+                  "type": "string"
+                },
+                "addOns": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              },
+              "required": [
+                "companyId",
+                "productId",
+                "name",
+                "price",
+                "quantity"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Item adicionado ao carrinho com sucesso"
+          },
+          "400": {
+            "description": "Dados inválidos ou conflito de empresa"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Esvaziar o carrinho do usuário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Carrinho esvaziado com sucesso"
+          }
+        }
+      }
+    },
+    "/cart/{itemId}": {
+      "patch": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Atualizar item do carrinho",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "atualizacao",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "quantity": {
+                  "type": "integer"
+                },
+                "observation": {
+                  "type": "string"
+                },
+                "addOns": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item atualizado"
+          },
+          "404": {
+            "description": "Item não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Remover item do carrinho",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item removido com sucesso"
+          },
+          "404": {
+            "description": "Item não encontrado"
+          }
+        }
+      }
+    },
+    "/cart/checkout": {
+      "post": {
+        "tags": [
+          "Carrinho"
+        ],
+        "summary": "Finalizar pedido com base no carrinho",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "checkout",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "addressId": {
+                  "type": "string"
+                },
+                "paymentMethodId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "addressId",
+                "paymentMethodId"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Pedido criado com sucesso"
+          },
+          "400": {
+            "description": "Carrinho vazio ou dados inválidos"
+          }
+        }
+      }
+    },
+    "/payment-methods": {
+      "get": {
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Listar meios de pagamento do usuário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de cartões"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Cadastrar novo cartão",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "cartao",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "nomeTitular": {
+                  "type": "string"
+                },
+                "numeroCartao": {
+                  "type": "string"
+                },
+                "validade": {
+                  "type": "string"
+                },
+                "cvv": {
+                  "type": "string"
+                },
+                "tipo": {
+                  "type": "string",
+                  "enum": [
+                    "crédito",
+                    "débito"
+                  ]
+                }
+              },
+              "required": [
+                "nomeTitular",
+                "numeroCartao",
+                "validade",
+                "cvv",
+                "tipo"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Cartão salvo com sucesso"
+          }
+        }
+      }
+    },
+    "/payment-methods/{id}": {
+      "patch": {
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Atualizar cartão",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "dados",
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cartão atualizado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Excluir cartão",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cartão removido com sucesso"
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": [
+          "Notificações"
+        ],
+        "summary": "Listar notificações do usuário logado (com filtro por tipo)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por tipo de notificação (pedido, marketing, sistema)",
+            "type": "string",
+            "enum": [
+              "pedido",
+              "marketing",
+              "sistema"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de notificações filtrada por tipo (se fornecido)"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Notificações"
+        ],
+        "summary": "Criar notificação (apenas para usuários de desenvolvimento)",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "notificação",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "userId": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "title",
+                "message",
+                "type"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Notificação criada"
+          }
+        }
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "tags": [
+          "Notificações"
+        ],
+        "summary": "Marcar notificação como lida",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notificação marcada como lida"
+          }
+        }
+      }
+    },
+    "/notifications/{id}": {
+      "delete": {
+        "tags": [
+          "Notificações"
+        ],
+        "summary": "Remover notificação do usuário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notificação removida"
+          },
+          "404": {
+            "description": "Notificação não encontrada"
+          }
+        }
+      }
+    },
+    "/addresses": {
+      "get": {
+        "tags": [
+          "Endereços"
+        ],
+        "summary": "Listar endereços do usuário logado",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de endereços do usuário"
+          },
+          "401": {
+            "description": "Token não enviado"
+          },
+          "403": {
+            "description": "Token inválido"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Endereços"
+        ],
+        "summary": "Cadastrar novo endereço",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "endereco",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "apelido": {
+                  "type": "string"
+                },
+                "rua": {
+                  "type": "string"
+                },
+                "numero": {
+                  "type": "string"
+                },
+                "bairro": {
+                  "type": "string"
+                },
+                "cidade": {
+                  "type": "string"
+                },
+                "estado": {
+                  "type": "string"
+                },
+                "cep": {
+                  "type": "string"
+                },
+                "complemento": {
+                  "type": "string"
+                },
+                "isDefault": {
+                  "type": "boolean",
+                  "description": "Define este endereço como padrão"
+                }
+              },
+              "required": [
+                "apelido",
+                "rua",
+                "numero",
+                "bairro",
+                "cidade",
+                "estado",
+                "cep"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Endereço criado com sucesso"
+          },
+          "400": {
+            "description": "Campos obrigatórios não preenchidos"
+          },
+          "401": {
+            "description": "Token não enviado"
+          },
+          "403": {
+            "description": "Token inválido"
+          }
+        }
+      }
+    },
+    "/addresses/{id}": {
+      "patch": {
+        "tags": [
+          "Endereços"
+        ],
+        "summary": "Atualizar endereço do usuário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "dados",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "apelido": {
+                  "type": "string"
+                },
+                "rua": {
+                  "type": "string"
+                },
+                "numero": {
+                  "type": "string"
+                },
+                "bairro": {
+                  "type": "string"
+                },
+                "cidade": {
+                  "type": "string"
+                },
+                "estado": {
+                  "type": "string"
+                },
+                "cep": {
+                  "type": "string"
+                },
+                "complemento": {
+                  "type": "string"
+                },
+                "isDefault": {
+                  "type": "boolean",
+                  "description": "Atualiza se o endereço é padrão"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Endereço atualizado com sucesso"
+          },
+          "404": {
+            "description": "Endereço não encontrado"
+          },
+          "401": {
+            "description": "Token não enviado"
+          },
+          "403": {
+            "description": "Token inválido"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Endereços"
+        ],
+        "summary": "Remover endereço do usuário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Endereço removido com sucesso"
+          },
+          "404": {
+            "description": "Endereço não encontrado"
+          },
+          "401": {
+            "description": "Token não enviado"
+          },
+          "403": {
+            "description": "Token inválido"
+          }
+        }
+      }
+    },
+    "/company-orders": {
+      "get": {
+        "tags": [
+          "Pedidos da Empresa"
+        ],
+        "summary": "Listar pedidos recebidos pela empresa logada",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de pedidos",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "userId": {
+                    "type": "integer"
+                  },
+                  "companyId": {
+                    "type": "integer"
+                  },
+                  "addressId": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "total": {
+                    "type": "number"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  },
+                  "nomeCliente": {
+                    "type": "string",
+                    "description": "Nome do usuário que fez o pedido"
+                  },
+                  "mediaAvaliacoes": {
+                    "type": "number",
+                    "description": "Média de avaliações que o usuário recebeu"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado (não é empresa)"
+          }
+        }
+      }
+    },
+    "/company-orders/{id}/assign": {
+      "patch": {
+        "tags": [
+          "Pedidos da Empresa"
+        ],
+        "summary": "Atribuir pedido a um motoboy da empresa",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "atribuição",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "motoboyId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "motoboyId"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Motoboy atribuído com sucesso"
+          },
+          "400": {
+            "description": "motoboyId ausente"
+          },
+          "404": {
+            "description": "Pedido ou motoboy não encontrado"
+          }
+        }
+      }
+    },
+    "/company-orders/{id}/available-motoboys": {
+      "get": {
+        "tags": [
+          "Pedidos da Empresa"
+        ],
+        "summary": "Listar motoboys ativos da empresa",
+        "description": "Retorna todos os motoboys ativos da empresa logada para seleção",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "ID do pedido (opcionalmente usado no front para indicar contexto)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Motoboys disponíveis",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "nome": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "telefone": {
+                    "type": "string"
+                  },
+                  "placaVeiculo": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/company-orders/{id}/status": {
+      "patch": {
+        "tags": [
+          "Pedidos da Empresa"
+        ],
+        "summary": "Atualizar status do pedido",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "status",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pendente",
+                    "aceito",
+                    "em preparo",
+                    "saiu para entrega",
+                    "entregue",
+                    "cancelado"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status atualizado com sucesso"
+          },
+          "404": {
+            "description": "Pedido não encontrado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          }
+        }
+      }
+    },
+    "/company-orders/{id}/cancel": {
+      "patch": {
+        "tags": [
+          "Pedidos da Empresa"
+        ],
+        "summary": "Cancelar pedido pela empresa",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pedido cancelado com sucesso"
+          },
+          "404": {
+            "description": "Pedido não encontrado"
+          },
+          "400": {
+            "description": "Pedido já finalizado"
+          }
+        }
+      }
+    },
+    "/orders": {
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Criar novo pedido",
+        "description": "Cria um novo pedido para a empresa especificada. Usuários bloqueados pela empresa não poderão realizar pedidos.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "pedido",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "companyId": {
+                  "type": "integer",
+                  "example": 123
+                },
+                "addressId": {
+                  "type": "string",
+                  "example": "end-456"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "productId": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      },
+                      "quantity": {
+                        "type": "integer"
+                      },
+                      "observation": {
+                        "type": "string"
+                      },
+                      "addOns": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "price": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "required": [
+                      "productId",
+                      "name",
+                      "price",
+                      "quantity"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "companyId",
+                "addressId",
+                "items"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Pedido criado com sucesso"
+          },
+          "400": {
+            "description": "Campos obrigatórios faltando"
+          },
+          "403": {
+            "description": "Usuário bloqueado pela empresa"
+          },
+          "404": {
+            "description": "Empresa não encontrada"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Listar pedidos do usuário logado",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de pedidos"
+          }
+        }
+      }
+    },
+    "/orders/active": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Buscar pedido ativo atual do usuário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pedido em andamento retornado com sucesso"
+          },
+          "204": {
+            "description": "Nenhum pedido em andamento encontrado"
+          }
+        }
+      }
+    },
+    "/orders/{id}/details": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Detalhes completos do pedido para o usuário logado",
+        "description": "Retorna todas as informações de um pedido específico, incluindo histórico de status, itens, empresa e entregador (se houver)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "ID do pedido"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes completos do pedido",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "numeroPedido": {
+                  "type": "string"
+                },
+                "data": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "statusAtual": {
+                  "type": "string"
+                },
+                "statusHistorico": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "total": {
+                  "type": "number"
+                },
+                "itens": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "nome": {
+                        "type": "string"
+                      },
+                      "quantidade": {
+                        "type": "integer"
+                      },
+                      "preco": {
+                        "type": "number"
+                      },
+                      "observacao": {
+                        "type": "string"
+                      },
+                      "adicionais": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "price": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "empresa": {
+                  "type": "object",
+                  "properties": {
+                    "nome": {
+                      "type": "string"
+                    },
+                    "imagem": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "entregador": {
+                  "type": "object",
+                  "description": "Informações do entregador atribuído (se houver)",
+                  "properties": {
+                    "nome": {
+                      "type": "string"
+                    },
+                    "placa": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "404": {
+            "description": "Pedido não encontrado"
+          }
+        }
+      }
+    },
+    "/orders/{id}/cancel": {
+      "patch": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Cancelar pedido (cliente)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pedido cancelado com sucesso"
+          },
+          "400": {
+            "description": "Não é possível cancelar"
+          },
+          "404": {
+            "description": "Pedido não encontrado"
+          }
+        }
+      }
+    },
+    "/orders/{id}/repeat": {
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Repetir um pedido anterior (jogar no carrinho)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "ID do pedido a ser repetido"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Carrinho atualizado com os itens do pedido anterior"
+          },
+          "404": {
+            "description": "Pedido não encontrado ou não pertence ao usuário"
+          }
+        }
+      }
+    },
+    "/orders/repeat-last": {
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Repetir automaticamente o último pedido entregue",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Carrinho preenchido com itens do último pedido"
+          },
+          "404": {
+            "description": "Nenhum pedido entregue encontrado"
+          }
+        }
+      }
+    },
+    "/coupons": {
+      "get": {
+        "tags": [
+          "Cupons"
+        ],
+        "summary": "Listar todos os cupons do sistema",
+        "responses": {
+          "200": {
+            "description": "Lista de cupons"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Cupons"
+        ],
+        "summary": "Criar novo cupom do sistema",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "cupom",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "discount": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "minValue": {
+                  "type": "number"
+                },
+                "isActive": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "discount",
+                "description",
+                "minValue",
+                "isActive"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Cupom criado com sucesso"
+          },
+          "409": {
+            "description": "Cupom com mesmo código já existe"
+          }
+        }
+      }
+    },
+    "/coupons/{id}": {
+      "patch": {
+        "tags": [
+          "Cupons"
+        ],
+        "summary": "Atualizar cupom por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "dados",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "discount": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "minValue": {
+                  "type": "number"
+                },
+                "isActive": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cupom atualizado"
+          },
+          "404": {
+            "description": "Cupom não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Cupons"
+        ],
+        "summary": "Excluir cupom por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cupom removido com sucesso"
+          },
+          "404": {
+            "description": "Cupom não encontrado"
+          }
+        }
+      }
+    },
+    "/user-coupons": {
+      "get": {
+        "tags": [
+          "Cupons do Usuário"
+        ],
+        "summary": "Listar cupons do usuário logado",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de cupons"
+          },
+          "401": {
+            "description": "Token não enviado"
+          },
+          "403": {
+            "description": "Token inválido"
+          }
+        }
+      }
+    },
+    "/user-coupons/{couponId}": {
+      "post": {
+        "tags": [
+          "Cupons do Usuário"
+        ],
+        "summary": "Vincular cupom do sistema ao usuário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "couponId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Cupom vinculado com sucesso"
+          },
+          "404": {
+            "description": "Cupom não encontrado"
+          },
+          "409": {
+            "description": "Cupom já vinculado"
+          }
+        }
+      }
+    },
+    "/user-coupons/{id}": {
+      "patch": {
+        "tags": [
+          "Cupons do Usuário"
+        ],
+        "summary": "Atualizar cupom do usuário (ex: usesLeft)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "dados",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "usesLeft": {
+                  "type": "integer"
+                },
+                "purchased": {
+                  "type": "boolean"
+                },
+                "isActive": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cupom atualizado"
+          },
+          "404": {
+            "description": "Cupom não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Cupons do Usuário"
+        ],
+        "summary": "Remover cupom do usuário",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cupom removido com sucesso"
+          },
+          "404": {
+            "description": "Cupom não encontrado"
+          }
+        }
+      }
+    },
+    "/favorites": {
+      "get": {
+        "tags": [
+          "Favoritos"
+        ],
+        "summary": "Listar empresas favoritas do usuário logado",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de empresas favoritas"
+          },
+          "401": {
+            "description": "Token não enviado"
+          },
+          "403": {
+            "description": "Token inválido ou expirado"
+          }
+        }
+      }
+    },
+    "/favorites/{companyId}": {
+      "post": {
+        "tags": [
+          "Favoritos"
+        ],
+        "summary": "Adicionar uma empresa aos favoritos do usuário logado",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Empresa favoritada com sucesso"
+          },
+          "404": {
+            "description": "Empresa não encontrada"
+          },
+          "409": {
+            "description": "Empresa já favoritada"
+          },
+          "401": {
+            "description": "Token não enviado"
+          },
+          "403": {
+            "description": "Token inválido"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Favoritos"
+        ],
+        "summary": "Remover uma empresa dos favoritos do usuário logado",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Favorito removido com sucesso"
+          },
+          "404": {
+            "description": "Favorito não encontrado"
+          },
+          "401": {
+            "description": "Token não enviado"
+          },
+          "403": {
+            "description": "Token inválido"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Login de usuário (cliente ou empresa)",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "credenciais",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string"
+                },
+                "senha": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "email",
+                "senha"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Login bem-sucedido. Retorna token JWT e dados do usuário"
+          },
+          "401": {
+            "description": "Email ou senha inválidos"
+          }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Listar todas as categorias",
+        "responses": {
+          "200": {
+            "description": "Lista de categorias"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Criar nova categoria",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "categoria",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "nome": {
+                  "type": "string"
+                },
+                "imagem": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "nome",
+                "imagem"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Categoria criada"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          }
+        }
+      }
+    },
+    "/categories/{id}": {
+      "get": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Buscar categoria por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Categoria encontrada"
+          },
+          "404": {
+            "description": "Categoria não encontrada"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Atualizar categoria por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "dados",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "nome": {
+                  "type": "string"
+                },
+                "imagem": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Categoria atualizada"
+          },
+          "404": {
+            "description": "Categoria não encontrada"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Remover categoria por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Categoria removida"
+          },
+          "404": {
+            "description": "Categoria não encontrada"
+          }
+        }
+      }
+    },
+    "/companies": {
+      "get": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Listar todas as empresas",
+        "responses": {
+          "200": {
+            "description": "Lista de empresas"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Criar nova empresa",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "empresa",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "image": {
+                  "type": "string"
+                },
+                "rating": {
+                  "type": "number"
+                },
+                "deliveryFee": {
+                  "type": "number"
+                },
+                "deliveryTime": {
+                  "type": "string"
+                },
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "dishes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "image",
+                "rating",
+                "deliveryFee",
+                "deliveryTime",
+                "categories"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Empresa criada com sucesso"
+          },
+          "400": {
+            "description": "Dados obrigatórios faltando"
+          }
+        }
+      }
+    },
+    "/companies/{id}": {
+      "get": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Buscar empresa por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Empresa encontrada"
+          },
+          "404": {
+            "description": "Empresa não encontrada"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Atualizar empresa por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "empresa",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "image": {
+                  "type": "string"
+                },
+                "rating": {
+                  "type": "number"
+                },
+                "deliveryFee": {
+                  "type": "number"
+                },
+                "deliveryTime": {
+                  "type": "string"
+                },
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "dishes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Empresa atualizada"
+          },
+          "404": {
+            "description": "Empresa não encontrada"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Remover empresa por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Empresa removida com sucesso"
+          },
+          "404": {
+            "description": "Empresa não encontrada"
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Listar todos os usuários",
+        "responses": {
+          "200": {
+            "description": "Lista de usuários"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Criar novo usuário",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "usuario",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "nome": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "senha": {
+                  "type": "string"
+                },
+                "endereco": {
+                  "type": "string"
+                },
+                "documento": {
+                  "type": "string"
+                },
+                "celular": {
+                  "type": "string"
+                },
+                "tipo": {
+                  "type": "string",
+                  "enum": [
+                    "cliente",
+                    "empresa"
+                  ]
+                },
+                "codigoIndicadoPor": {
+                  "type": "string",
+                  "description": "Código de convite de quem indicou (opcional)"
+                }
+              },
+              "required": [
+                "nome",
+                "email",
+                "senha",
+                "endereco",
+                "documento",
+                "celular",
+                "tipo"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Usuário criado com sucesso",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "number"
+                },
+                "nome": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "tipo": {
+                  "type": "string"
+                },
+                "codigoConvite": {
+                  "type": "string",
+                  "description": "Código exclusivo do usuário para compartilhar com amigos"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user-reviews": {
+      "post": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Empresa avalia o usuário após pedido entregue",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "dados",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "orderId": {
+                  "type": "string"
+                },
+                "rating": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5
+                }
+              },
+              "required": [
+                "orderId",
+                "rating"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Usuário avaliado com sucesso"
+          },
+          "400": {
+            "description": "Erro de validação"
+          },
+          "404": {
+            "description": "Pedido ou usuário não encontrado"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Buscar usuário por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuário encontrado"
+          },
+          "404": {
+            "description": "Usuário não encontrado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Atualizar usuário por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "dados",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "nome": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "senha": {
+                  "type": "string"
+                },
+                "endereco": {
+                  "type": "string"
+                },
+                "documento": {
+                  "type": "string"
+                },
+                "celular": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuário atualizado"
+          },
+          "404": {
+            "description": "Usuário não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Remover usuário por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuário removido com sucesso"
+          },
+          "404": {
+            "description": "Usuário não encontrado"
+          }
+        }
+      }
+    },
+    "/companies/{companyId}/products": {
+      "get": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Listar todos os produtos de uma empresa",
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "description": "ID da empresa"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de produtos da empresa"
+          },
+          "404": {
+            "description": "Empresa não encontrada"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Criar um novo produto para uma empresa",
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "produto",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "image": {
+                  "type": "string"
+                },
+                "accompaniments": {
+                  "type": "object",
+                  "properties": {
+                    "free": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "paid": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                },
+                "suggestedAddOns": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "price",
+                "description",
+                "image"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Produto criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "404": {
+            "description": "Empresa não encontrada"
+          }
+        }
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Buscar produto por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produto encontrado"
+          },
+          "404": {
+            "description": "Produto não encontrado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Atualizar produto por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "dados",
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produto atualizado"
+          },
+          "404": {
+            "description": "Produto não encontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Remover produto por ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produto removido com sucesso"
+          },
+          "404": {
+            "description": "Produto não encontrado"
+          }
+        }
+      }
+    }
+  }
+}
