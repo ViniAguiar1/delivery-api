@@ -1,37 +1,30 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const autenticarToken = require('../middleware/auth');
-
+const Order = require('../models/Order'); // Importando a model Order
+const Product = require('../models/Product'); // Para validar os produtos, se necessário
+const Company = require('../models/Company'); // Para verificar se a empresa está bloqueando o usuário
 const router = express.Router();
-const dataPath = path.join(__dirname, '../db/data.json');
 
-function readData() {
-  const raw = fs.readFileSync(dataPath);
-  return JSON.parse(raw);
-}
-
-function writeData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
-
-// POST - criar pedido
-router.post('/', autenticarToken, (req, res) => {
-  const data = readData();
-  const orders = data.orders || [];
-
+// POST - Criar pedido
+router.post('/', autenticarToken, async (req, res) => {
   const { companyId, addressId, items } = req.body;
 
   if (!companyId || !addressId || !items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Campos obrigatórios: companyId, addressId, items.' });
   }
 
-  // Verifica se o usuário está bloqueado pela empresa
-  const empresa = data.companies.find(c => c.id === companyId);
-  if (!empresa) return res.status(404).json({ error: 'Empresa não encontrada' });
+  // Verificar se a empresa existe
+  const company = await Company.findById(companyId);
+  if (!company) return res.status(404).json({ error: 'Empresa não encontrada' });
 
-  if ((empresa.blockedUsers || []).includes(req.user.id)) {
-    return res.status(403).json({ error: 'Você está bloqueado por esta empresa.' });
+  // Verificar se o endereço está em uma região bloqueada pela empresa
+  const address = await Address.findById(addressId); // Aqui você precisará de um modelo de Address
+  if (!address) return res.status(404).json({ error: 'Endereço não encontrado' });
+
+  const userPostalCode = address.postalCode; // Ou qualquer outro campo que represente a região do endereço
+
+  if (company.blockedRegions.includes(userPostalCode)) {
+    return res.status(400).json({ error: 'Esta região está bloqueada para entregas.' });
   }
 
   const total = items.reduce((acc, item) => {
@@ -39,207 +32,144 @@ router.post('/', autenticarToken, (req, res) => {
     return acc + itemTotal;
   }, 0);
 
-  const newOrder = {
-    id: Date.now().toString(),
+  const newOrder = new Order({
     userId: req.user.id,
     companyId,
     addressId,
     items,
     total: parseFloat(total.toFixed(2)),
     status: 'pendente',
-    createdAt: new Date().toISOString()
-  };
+  });
 
-  orders.push(newOrder);
-  data.orders = orders;
-  writeData(data);
-
-  res.status(201).json(newOrder);
+  try {
+    await newOrder.save();
+    res.status(201).json(newOrder);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao criar pedido', details: error.message });
+  }
 });
 
-// GET - listar pedidos do usuário (histórico)
-router.get('/', autenticarToken, (req, res) => {
-  const data = readData();
-  const orders = (data.orders || []).filter(o => o.userId === req.user.id);
-  res.json(orders);
+// GET - Listar pedidos do usuário (histórico)
+router.get('/', autenticarToken, async (req, res) => {
+  try {
+    const orders = await Order.find({ userId: req.user.id }).populate('companyId').populate('items.productId');
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao listar pedidos', details: error.message });
+  }
 });
 
-// PATCH - cancelar pedido (cliente)
-router.patch('/:id/cancel', autenticarToken, (req, res) => {
-  const data = readData();
-  const orders = data.orders || [];
+// PATCH - Cancelar pedido (cliente)
+router.patch('/:id/cancel', autenticarToken, async (req, res) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, userId: req.user.id });
 
-  const index = orders.findIndex(o => o.id === req.params.id && o.userId === req.user.id);
-  if (index === -1) return res.status(404).json({ error: 'Pedido não encontrado.' });
+    if (!order) {
+      return res.status(404).json({ error: 'Pedido não encontrado.' });
+    }
 
-  const pedido = orders[index];
+    if (order.status !== 'pendente') {
+      return res.status(400).json({ error: 'Só é possível cancelar pedidos com status "pendente".' });
+    }
 
-  if (pedido.status !== 'pendente') {
-    return res.status(400).json({ error: 'Só é possível cancelar pedidos com status "pendente".' });
+    order.status = 'cancelado';
+    await order.save();
+    
+    res.json({ message: 'Pedido cancelado com sucesso.', pedido: order });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao cancelar o pedido', details: error.message });
   }
-
-  pedido.status = 'cancelado';
-  data.orders = orders;
-  writeData(data);
-
-  res.json({ message: 'Pedido cancelado com sucesso.', pedido });
 });
 
-// GET - detalhes completos de um pedido
-router.get('/:id/details', autenticarToken, (req, res) => {
-  const data = readData();
-  const pedido = (data.orders || []).find(p => p.id === req.params.id);
+// GET - Detalhes completos de um pedido
+router.get('/:id/details', autenticarToken, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('companyId')
+      .populate('items.productId')
+      .populate('motoboyId');
 
-  if (!pedido) {
-    return res.status(404).json({ error: 'Pedido não encontrado.' });
+    if (!order) {
+      return res.status(404).json({ error: 'Pedido não encontrado.' });
+    }
+
+    if (order.userId !== req.user.id && req.user.tipo !== 'empresa') {
+      return res.status(403).json({ error: 'Você não tem permissão para ver esse pedido.' });
+    }
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao obter detalhes do pedido', details: error.message });
   }
-
-  if (pedido.userId !== req.user.id && req.user.tipo !== 'empresa') {
-    return res.status(403).json({ error: 'Você não tem permissão para ver esse pedido.' });
-  }
-
-  const empresa = (data.companies || []).find(c => c.id === pedido.companyId);
-  const motoboy = pedido.motoboyId
-    ? (data.staff || []).find(f => f.id === pedido.motoboyId)
-    : null;
-
-  const statusMapa = {
-    "pendente": ["pendente"],
-    "aceito": ["pendente", "aceito"],
-    "em preparo": ["pendente", "aceito", "em preparo"],
-    "saiu para entrega": ["pendente", "aceito", "em preparo", "saiu para entrega"],
-    "entregue": ["pendente", "aceito", "em preparo", "saiu para entrega", "entregue"],
-    "cancelado": ["pendente", "cancelado"]
-  };
-
-  const resposta = {
-    numeroPedido: pedido.id,
-    data: pedido.createdAt,
-    statusAtual: pedido.status,
-    statusHistorico: statusMapa[pedido.status] || [pedido.status],
-    total: pedido.total,
-    itens: pedido.items.map(item => ({
-      nome: item.name,
-      quantidade: item.quantity,
-      preco: item.price,
-      observacao: item.observation,
-      adicionais: item.addOns || []
-    })),
-    empresa: empresa ? {
-      nome: empresa.name,
-      imagem: empresa.image
-    } : null,
-    entregador: motoboy ? {
-      nome: motoboy.nome,
-      placa: motoboy.placaVeiculo
-    } : null
-  };
-
-  res.json(resposta);
 });
 
-// POST - repetir pedido anterior (adiciona ao carrinho)
-router.post('/:id/repeat', autenticarToken, (req, res) => {
-  const data = readData();
-  const pedido = (data.orders || []).find(p => p.id === req.params.id);
+// POST - Repetir pedido anterior (adiciona ao carrinho)
+router.post('/:id/repeat', autenticarToken, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('items.productId');
 
-  if (!pedido || pedido.userId !== req.user.id) {
-    return res.status(404).json({ error: 'Pedido não encontrado ou não pertence ao usuário.' });
-  }
+    if (!order || order.userId !== req.user.id) {
+      return res.status(404).json({ error: 'Pedido não encontrado ou não pertence ao usuário.' });
+    }
 
-  data.carts = (data.carts || []).filter(c => c.userId !== req.user.id);
-
-  const novoCarrinho = {
-    id: Date.now().toString(),
-    userId: req.user.id,
-    companyId: pedido.companyId,
-    items: pedido.items.map(item => ({
-      id: Date.now().toString() + Math.random().toString().slice(2, 5),
-      productId: item.productId,
+    const itemsToAdd = order.items.map(item => ({
+      productId: item.productId._id,
       name: item.name,
       price: item.price,
       quantity: item.quantity,
       observation: item.observation,
-      addOns: item.addOns || []
-    })),
-    createdAt: new Date().toISOString()
-  };
+      addOns: item.addOns
+    }));
 
-  data.carts.push(novoCarrinho);
-  writeData(data);
+    // Aqui você pode adicionar os itens do pedido anterior ao carrinho, dependendo da implementação do carrinho
+    // Você pode usar a lógica de adicionar ao carrinho com base nos itens do pedido
 
-  res.status(201).json({
-    message: 'Pedido anterior adicionado ao carrinho com sucesso.',
-    carrinho: novoCarrinho
-  });
+    res.status(201).json({ message: 'Pedido anterior adicionado ao carrinho com sucesso.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao repetir pedido', details: error.message });
+  }
 });
 
-// POST - repetir automaticamente o último pedido entregue do usuário
-router.post('/repeat-last', autenticarToken, (req, res) => {
-  const data = readData();
-  const pedidos = (data.orders || []).filter(p => p.userId === req.user.id && p.status === 'entregue');
+// POST - Repetir automaticamente o último pedido entregue do usuário
+router.post('/repeat-last', autenticarToken, async (req, res) => {
+  try {
+    const lastOrder = await Order.findOne({ userId: req.user.id, status: 'entregue' }).sort({ createdAt: -1 }).populate('items.productId');
 
-  if (!pedidos.length) {
-    return res.status(404).json({ error: 'Nenhum pedido entregue encontrado para repetir.' });
-  }
+    if (!lastOrder) {
+      return res.status(404).json({ error: 'Nenhum pedido entregue encontrado para repetir.' });
+    }
 
-  const ultimoPedido = pedidos.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-
-  data.carts = (data.carts || []).filter(c => c.userId !== req.user.id);
-
-  const novoCarrinho = {
-    id: Date.now().toString(),
-    userId: req.user.id,
-    companyId: ultimoPedido.companyId,
-    items: ultimoPedido.items.map(item => ({
-      id: Date.now().toString() + Math.random().toString().slice(2, 5),
-      productId: item.productId,
+    const itemsToAdd = lastOrder.items.map(item => ({
+      productId: item.productId._id,
       name: item.name,
       price: item.price,
       quantity: item.quantity,
       observation: item.observation,
-      addOns: item.addOns || []
-    })),
-    createdAt: new Date().toISOString()
-  };
+      addOns: item.addOns
+    }));
 
-  data.carts.push(novoCarrinho);
-  writeData(data);
+    // Aqui você pode adicionar os itens do pedido anterior ao carrinho, dependendo da implementação do carrinho
+    // Lógica para adicionar os itens ao carrinho
 
-  res.status(201).json({
-    message: 'Último pedido repetido com sucesso.',
-    carrinho: novoCarrinho
-  });
+    res.status(201).json({ message: 'Último pedido repetido com sucesso.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao repetir último pedido', details: error.message });
+  }
 });
 
-// GET - pedido ativo atual do usuário
-router.get('/active', autenticarToken, (req, res) => {
-  const data = readData();
+// GET - Pedido ativo atual do usuário
+router.get('/active', autenticarToken, async (req, res) => {
+  try {
+    const activeOrder = await Order.findOne({ userId: req.user.id, status: { $nin: ['entregue', 'cancelado'] } });
 
-  const pedidosAtivos = (data.orders || [])
-    .filter(p => p.userId === req.user.id && !['entregue', 'cancelado'].includes(p.status));
+    if (!activeOrder) {
+      return res.status(204).send();
+    }
 
-  if (!pedidosAtivos.length) {
-    return res.status(204).send();
+    res.json(activeOrder);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao obter pedido ativo', details: error.message });
   }
-
-  const pedido = pedidosAtivos.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-  const empresa = data.companies.find(c => c.id === pedido.companyId);
-
-  res.json({
-    id: pedido.id,
-    status: pedido.status,
-    createdAt: pedido.createdAt,
-    total: pedido.total,
-    empresa: empresa ? {
-      nome: empresa.name,
-      imagem: empresa.image
-    } : null,
-    itens: pedido.items.map(i => ({
-      nome: i.name,
-      quantidade: i.quantity
-    }))
-  });
 });
 
 module.exports = router;

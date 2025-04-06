@@ -1,89 +1,81 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const Category = require('../models/Category');  // Importando o modelo Category
 const router = express.Router();
 
-const dataPath = path.join(__dirname, '../db/data.json');
-
-function readData() {
-  const raw = fs.readFileSync(dataPath);
-  return JSON.parse(raw);
-}
-
-function writeData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
-
 // GET /api/categories - Listar todas as categorias
-router.get('/', (req, res) => {
-  const data = readData();
-  res.json(data.categories || []);
+router.get('/', async (req, res) => {
+  try {
+    const categories = await Category.find();
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao listar categorias', details: error.message });
+  }
 });
 
 // GET /api/categories/:id - Buscar por ID
-router.get('/:id', (req, res) => {
-  const data = readData();
-  const category = (data.categories || []).find(c => c.id == req.params.id);
+router.get('/:id', async (req, res) => {
+  try {
+    const category = await Category.findById(req.params.id);
 
-  if (!category) {
-    return res.status(404).json({ error: 'Categoria não encontrada.' });
+    if (!category) {
+      return res.status(404).json({ error: 'Categoria não encontrada.' });
+    }
+
+    res.json(category);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar categoria', details: error.message });
   }
-
-  res.json(category);
 });
 
 // POST /api/categories - Criar nova categoria
-router.post('/', (req, res) => {
-  const data = readData();
-  const categories = data.categories || [];
-
+router.post('/', async (req, res) => {
   const { nome, imagem } = req.body;
 
   if (!nome || !imagem) {
     return res.status(400).json({ error: 'Nome e imagem são obrigatórios.' });
   }
 
-  const newCategory = {
-    id: Date.now(),
+  const newCategory = new Category({
     nome,
     imagem
-  };
+  });
 
-  categories.push(newCategory);
-  data.categories = categories;
-  writeData(data);
-
-  res.status(201).json(newCategory);
+  try {
+    await newCategory.save();
+    res.status(201).json(newCategory);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao criar categoria', details: error.message });
+  }
 });
 
 // PATCH /api/categories/:id - Editar categoria
-router.patch('/:id', (req, res) => {
-  const data = readData();
-  let categories = data.categories || [];
+router.patch('/:id', async (req, res) => {
+  try {
+    const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
 
-  const index = categories.findIndex(c => c.id == req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Categoria não encontrada.' });
+    if (!category) {
+      return res.status(404).json({ error: 'Categoria não encontrada.' });
+    }
 
-  categories[index] = { ...categories[index], ...req.body };
-  data.categories = categories;
-  writeData(data);
-
-  res.json(categories[index]);
+    res.json(category);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao atualizar categoria', details: error.message });
+  }
 });
 
 // DELETE /api/categories/:id - Remover categoria
-router.delete('/:id', (req, res) => {
-  const data = readData();
-  let categories = data.categories || [];
+router.delete('/:id', async (req, res) => {
+  try {
+    const category = await Category.findByIdAndDelete(req.params.id);
 
-  const index = categories.findIndex(c => c.id == req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Categoria não encontrada.' });
+    if (!category) {
+      return res.status(404).json({ error: 'Categoria não encontrada.' });
+    }
 
-  const removed = categories.splice(index, 1);
-  data.categories = categories;
-  writeData(data);
-
-  res.json({ message: 'Categoria removida com sucesso.', categoria: removed[0] });
+    res.json({ message: 'Categoria removida com sucesso.', categoria: category });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao remover categoria', details: error.message });
+  }
 });
 
 module.exports = router;

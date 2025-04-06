@@ -1,103 +1,108 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const router = express.Router();
+const Address = require('../models/Address');
 const autenticarToken = require('../middleware/auth');
 
-const router = express.Router();
-const dataPath = path.join(__dirname, '../db/data.json');
-
-function readData() {
-  const raw = fs.readFileSync(dataPath);
-  return JSON.parse(raw);
-}
-
-function writeData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
-
-// GET - listar endereços do usuário
-router.get('/', autenticarToken, (req, res) => {
-  const data = readData();
-  const addresses = (data.addresses || []).filter(a => a.userId === req.user.id);
-  res.json(addresses);
+// GET - Listar endereços do usuário logado
+router.get('/', autenticarToken, async (req, res) => {
+  try {
+    const addresses = await Address.find({ userId: req.user.id });
+    res.json(addresses);
+  } catch {
+    res.status(500).json({ error: 'Erro ao buscar endereços.' });
+  }
 });
 
-// POST - adicionar novo endereço
-router.post('/', autenticarToken, (req, res) => {
-  const data = readData();
-  const addresses = data.addresses || [];
+// POST - Criar novo endereço
+router.post('/', autenticarToken, async (req, res) => {
+  try {
+    const {
+      apelido,
+      rua,
+      numero,
+      bairro,
+      cidade,
+      estado,
+      cep,
+      complemento,
+      isDefault
+    } = req.body;
 
-  const { apelido, rua, numero, bairro, cidade, estado, cep, complemento, isDefault } = req.body;
+    if (!apelido || !rua || !numero || !bairro || !cidade || !estado || !cep) {
+      return res.status(400).json({ error: 'Campos obrigatórios não preenchidos.' });
+    }
 
-  if (!apelido || !rua || !numero || !bairro || !cidade || !estado || !cep) {
-    return res.status(400).json({ error: 'Campos obrigatórios não preenchidos.' });
+    if (isDefault) {
+      await Address.updateMany(
+        { userId: req.user.id },
+        { isDefault: false }
+      );
+    }
+
+    const novoEndereco = new Address({
+      userId: req.user.id,
+      apelido,
+      rua,
+      numero,
+      bairro,
+      cidade,
+      estado,
+      cep,
+      complemento,
+      isDefault: isDefault || false
+    });
+
+    await novoEndereco.save();
+    res.status(201).json(novoEndereco);
+  } catch {
+    res.status(500).json({ error: 'Erro ao salvar endereço.' });
   }
+});
 
-  // Se for marcado como default, remove default de outros
-  if (isDefault) {
-    data.addresses = addresses.map(a =>
-      a.userId === req.user.id ? { ...a, isDefault: false } : a
+// PATCH - Atualizar endereço
+router.patch('/:id', autenticarToken, async (req, res) => {
+  try {
+    const { isDefault } = req.body;
+
+    if (isDefault) {
+      await Address.updateMany(
+        { userId: req.user.id },
+        { isDefault: false }
+      );
+    }
+
+    const atualizado = await Address.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      req.body,
+      { new: true }
     );
+
+    if (!atualizado) {
+      return res.status(404).json({ error: 'Endereço não encontrado.' });
+    }
+
+    res.json(atualizado);
+  } catch {
+    res.status(400).json({ error: 'Erro ao atualizar endereço.' });
   }
-
-  const newAddress = {
-    id: Date.now().toString(),
-    userId: req.user.id,
-    apelido,
-    rua,
-    numero,
-    bairro,
-    cidade,
-    estado,
-    cep,
-    complemento: complemento || '',
-    isDefault: isDefault || false
-  };
-
-  data.addresses.push(newAddress);
-  writeData(data);
-
-  res.status(201).json(newAddress);
 });
 
-// PATCH - atualizar endereço
-router.patch('/:id', autenticarToken, (req, res) => {
-  const data = readData();
-  const addresses = data.addresses || [];
+// DELETE - Remover endereço
+router.delete('/:id', autenticarToken, async (req, res) => {
+  try {
+    const removido = await Address.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.id
+    });
 
-  const index = addresses.findIndex(a => a.id === req.params.id && a.userId === req.user.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Endereço não encontrado.' });
+    if (!removido) {
+      return res.status(404).json({ error: 'Endereço não encontrado.' });
+    }
+
+    res.json({ message: 'Endereço removido com sucesso.' });
+  } catch {
+    res.status(400).json({ error: 'Erro ao remover endereço.' });
   }
-
-  // Se isDefault for enviado como true, remove default de outros
-  if (req.body.isDefault === true) {
-    data.addresses = addresses.map(a =>
-      a.userId === req.user.id ? { ...a, isDefault: false } : a
-    );
-  }
-
-  data.addresses[index] = { ...data.addresses[index], ...req.body };
-  writeData(data);
-
-  res.json(data.addresses[index]);
-});
-
-// DELETE - remover endereço
-router.delete('/:id', autenticarToken, (req, res) => {
-  const data = readData();
-  const addresses = data.addresses || [];
-
-  const index = addresses.findIndex(a => a.id === req.params.id && a.userId === req.user.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Endereço não encontrado.' });
-  }
-
-  const removed = addresses.splice(index, 1);
-  data.addresses = addresses;
-  writeData(data);
-
-  res.json({ message: 'Endereço removido com sucesso.', endereco: removed[0] });
 });
 
 module.exports = router;

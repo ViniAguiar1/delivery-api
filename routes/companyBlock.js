@@ -1,20 +1,10 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const Company = require('../models/Company');  // Importando o modelo de Company
 const autenticarToken = require('../middleware/auth');
 
 const router = express.Router();
-const dataPath = path.join(__dirname, '../db/data.json');
 
-function readData() {
-  return JSON.parse(fs.readFileSync(dataPath));
-}
-
-function writeData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
-
-// Middleware de validação do tipo empresa
+// Middleware de validação do tipo "empresa"
 function validarEmpresa(req, res, next) {
   if (req.user.tipo !== 'empresa') {
     return res.status(403).json({ error: 'Acesso permitido apenas para empresas.' });
@@ -22,42 +12,44 @@ function validarEmpresa(req, res, next) {
   next();
 }
 
-// PATCH /api/companies/block-user
-router.patch('/block-user', autenticarToken, validarEmpresa, (req, res) => {
+// PATCH /api/companies/block-user - Bloquear usuário
+router.patch('/block-user', autenticarToken, validarEmpresa, async (req, res) => {
   const { userId } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId é obrigatório' });
 
-  const data = readData();
-  const empresa = data.companies.find(c => c.id === req.user.id);
+  try {
+    const empresa = await Company.findById(req.user.id);
+    if (!empresa) return res.status(404).json({ error: 'Empresa não encontrada' });
 
-  if (!empresa) return res.status(404).json({ error: 'Empresa não encontrada' });
+    // Se o usuário não estiver bloqueado, bloqueia
+    if (!empresa.blockedUsers.includes(userId)) {
+      empresa.blockedUsers.push(userId);
+      await empresa.save();  // Salva a alteração no banco de dados
+    }
 
-  empresa.blockedUsers = empresa.blockedUsers || [];
-
-  if (!empresa.blockedUsers.includes(userId)) {
-    empresa.blockedUsers.push(userId);
-    writeData(data);
+    res.json({ message: 'Usuário bloqueado com sucesso.', blockedUsers: empresa.blockedUsers });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao bloquear usuário.' });
   }
-
-  res.json({ message: 'Usuário bloqueado com sucesso.', blockedUsers: empresa.blockedUsers });
 });
 
-// PATCH /api/companies/unblock-user
-router.patch('/unblock-user', autenticarToken, validarEmpresa, (req, res) => {
+// PATCH /api/companies/unblock-user - Desbloquear usuário
+router.patch('/unblock-user', autenticarToken, validarEmpresa, async (req, res) => {
   const { userId } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId é obrigatório' });
 
-  const data = readData();
-  const empresa = data.companies.find(c => c.id === req.user.id);
+  try {
+    const empresa = await Company.findById(req.user.id);
+    if (!empresa) return res.status(404).json({ error: 'Empresa não encontrada' });
 
-  if (!empresa) return res.status(404).json({ error: 'Empresa não encontrada' });
+    // Filtra o usuário para removê-lo da lista de bloqueados
+    empresa.blockedUsers = empresa.blockedUsers.filter(id => id !== userId);
+    await empresa.save();  // Salva a alteração no banco de dados
 
-  empresa.blockedUsers = empresa.blockedUsers || [];
-  empresa.blockedUsers = empresa.blockedUsers.filter(id => id !== userId);
-
-  writeData(data);
-
-  res.json({ message: 'Usuário desbloqueado com sucesso.', blockedUsers: empresa.blockedUsers });
+    res.json({ message: 'Usuário desbloqueado com sucesso.', blockedUsers: empresa.blockedUsers });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao desbloquear usuário.' });
+  }
 });
 
 module.exports = router;

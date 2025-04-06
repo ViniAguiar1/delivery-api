@@ -1,57 +1,65 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const mongoose = require('mongoose');
+const Recommendation = require('../models/Recommendation'); // Importando a model Recommendation
+const Product = require('../models/Product'); // Importando a model Product
 const autenticarToken = require('../middleware/auth');
 
 const router = express.Router();
-const dataPath = path.join(__dirname, '../db/data.json');
 
-function readData() {
-  return JSON.parse(fs.readFileSync(dataPath));
-}
-
-// GET - recomendações de produtos para o usuário logado
-router.get('/', autenticarToken, (req, res) => {
-  const data = readData();
+// Função para gerar recomendações de produtos baseadas nas interações do usuário
+router.get('/', autenticarToken, async (req, res) => {
   const userId = req.user.id;
 
-  const favoritos = (data.favorites || []).filter(f => f.userId === userId);
-  const pedidos = (data.orders || []).filter(p => p.userId === userId);
+  try {
+    // Buscar favoritos e pedidos do usuário
+    const favoritos = await mongoose.model('Favorite').find({ userId });
+    const pedidos = await mongoose.model('Order').find({ userId });
 
-  const empresasFavoritas = favoritos.map(f => f.companyId);
-  const empresasDosPedidos = [...new Set(pedidos.map(p => p.companyId))];
+    const empresasFavoritas = favoritos.map(f => f.companyId);
+    const empresasDosPedidos = [...new Set(pedidos.map(p => p.companyId))];
 
-  const empresasBase = [...new Set([...empresasFavoritas, ...empresasDosPedidos])];
+    const empresasBase = [...new Set([...empresasFavoritas, ...empresasDosPedidos])];
 
-  // Buscar categorias baseadas nessas empresas
-  const categoriasFrequentes = empresasBase
-    .map(id => data.companies.find(c => c.id === id))
-    .filter(Boolean)
-    .flatMap(c => c.categories);
+    // Buscar categorias baseadas nas empresas que o usuário interage
+    const categoriasFrequentes = await mongoose.model('Company').find({ '_id': { $in: empresasBase } })
+      .then(companies => companies.flatMap(company => company.categories));
 
-  const categoriasUnicas = [...new Set(categoriasFrequentes)];
+    const categoriasUnicas = [...new Set(categoriasFrequentes)];
 
-  // Buscar produtos de empresas com as mesmas categorias, que o usuário ainda não comprou
-  const produtosRecomendados = data.products.filter(p => {
-    const empresa = data.companies.find(c => c.id === p.companyId);
-    if (!empresa) return false;
+    // Buscar produtos de empresas com as mesmas categorias que o usuário ainda não comprou
+    const produtosRecomendados = await Product.find({
+      companyId: { $in: empresasBase },
+      categories: { $in: categoriasUnicas },
+      _id: { $nin: pedidos.map(pedido => pedido.productId) }
+    });
 
-    const temCategoriaRelacionada = empresa.categories.some(cat => categoriasUnicas.includes(cat));
-    const naoEhEmpresaRepetida = !empresasBase.includes(empresa.id);
+    const recommendations = produtosRecomendados.map(prod => ({
+      productId: prod._id,
+      productName: prod.name,
+      productPrice: prod.price,
+      productImage: prod.image,
+      companyName: prod.companyName
+    }));
 
-    return temCategoriaRelacionada && naoEhEmpresaRepetida;
-  }).map(prod => {
-    const empresa = data.companies.find(c => c.id === prod.companyId);
-    return {
-      id: prod.id,
-      name: prod.name,
-      price: prod.price,
-      image: prod.image,
-      companyName: empresa?.name || ''
-    };
-  });
+    // Criar ou atualizar recomendações para o usuário
+    let existingRecommendation = await Recommendation.findOne({ userId });
 
-  res.json(produtosRecomendados.slice(0, 10)); // Limitar a 10 sugestões
+    if (existingRecommendation) {
+      existingRecommendation.recommendations = recommendations;
+      await existingRecommendation.save();
+    } else {
+      const newRecommendation = new Recommendation({
+        userId,
+        recommendations
+      });
+      await newRecommendation.save();
+    }
+
+    // Limitar o número de recomendações (máximo 10)
+    res.json(recommendations.slice(0, 10));
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar recomendações de produtos.' });
+  }
 });
 
 module.exports = router;

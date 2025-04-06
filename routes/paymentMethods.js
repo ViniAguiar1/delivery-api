@@ -1,31 +1,20 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const autenticarToken = require('../middleware/auth');
-
+const PaymentMethod = require('../models/PaymentMethod'); // Importando o modelo de PaymentMethod
 const router = express.Router();
-const dataPath = path.join(__dirname, '../db/data.json');
-
-function readData() {
-  return JSON.parse(fs.readFileSync(dataPath));
-}
-
-function writeData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
 
 // GET - listar cartões do usuário
-router.get('/', autenticarToken, (req, res) => {
-  const data = readData();
-  const cards = (data.paymentMethods || []).filter(c => c.userId === req.user.id);
-  res.json(cards);
+router.get('/', autenticarToken, async (req, res) => {
+  try {
+    const cards = await PaymentMethod.find({ userId: req.user.id });
+    res.json(cards);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao listar cartões', details: error.message });
+  }
 });
 
 // POST - cadastrar novo cartão
-router.post('/', autenticarToken, (req, res) => {
-  const data = readData();
-  const cards = data.paymentMethods || [];
-
+router.post('/', autenticarToken, async (req, res) => {
   const { nomeTitular, numeroCartao, validade, cvv, tipo } = req.body;
 
   if (!nomeTitular || !numeroCartao || !validade || !cvv || !tipo) {
@@ -38,59 +27,60 @@ router.post('/', autenticarToken, (req, res) => {
   }
 
   const ultimos4 = numeroCartao.slice(-4);
-  const novoCartao = {
-    id: Date.now().toString(),
+
+  const newPaymentMethod = new PaymentMethod({
     userId: req.user.id,
     nomeTitular,
     numeroCartao: `**** **** **** ${ultimos4}`,
     validade,
-    cvv: "***",
+    cvv: "***", // CVV não é retornado por questões de segurança
     tipo
-  };
+  });
 
-  cards.push(novoCartao);
-  data.paymentMethods = cards;
-  writeData(data);
-
-  res.status(201).json(novoCartao);
+  try {
+    await newPaymentMethod.save();
+    res.status(201).json(newPaymentMethod);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao cadastrar cartão', details: error.message });
+  }
 });
 
 // PATCH - atualizar cartão
-router.patch('/:id', autenticarToken, (req, res) => {
-  const data = readData();
-  const cards = data.paymentMethods || [];
+router.patch('/:id', autenticarToken, async (req, res) => {
+  try {
+    const paymentMethod = await PaymentMethod.findOne({ _id: req.params.id, userId: req.user.id });
 
-  const index = cards.findIndex(c => c.id === req.params.id && c.userId === req.user.id);
-  if (index === -1) return res.status(404).json({ error: 'Cartão não encontrado.' });
+    if (!paymentMethod) {
+      return res.status(404).json({ error: 'Cartão não encontrado.' });
+    }
 
-  const atual = cards[index];
-  const atualizacao = req.body;
+    // Atualizando o número de cartão e ocultando os primeiros números
+    if (req.body.numeroCartao) {
+      req.body.numeroCartao = `**** **** **** ${req.body.numeroCartao.slice(-4)}`;
+    }
 
-  // Atualizar número: exibir apenas final
-  if (atualizacao.numeroCartao) {
-    atualizacao.numeroCartao = `**** **** **** ${atualizacao.numeroCartao.slice(-4)}`;
+    Object.assign(paymentMethod, req.body);
+    await paymentMethod.save();
+
+    res.json(paymentMethod);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao atualizar cartão', details: error.message });
   }
-
-  cards[index] = { ...atual, ...atualizacao };
-  data.paymentMethods = cards;
-  writeData(data);
-
-  res.json(cards[index]);
 });
 
 // DELETE - excluir cartão
-router.delete('/:id', autenticarToken, (req, res) => {
-  const data = readData();
-  const cards = data.paymentMethods || [];
+router.delete('/:id', autenticarToken, async (req, res) => {
+  try {
+    const paymentMethod = await PaymentMethod.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
 
-  const index = cards.findIndex(c => c.id === req.params.id && c.userId === req.user.id);
-  if (index === -1) return res.status(404).json({ error: 'Cartão não encontrado.' });
+    if (!paymentMethod) {
+      return res.status(404).json({ error: 'Cartão não encontrado.' });
+    }
 
-  const removed = cards.splice(index, 1);
-  data.paymentMethods = cards;
-  writeData(data);
-
-  res.json({ message: 'Cartão removido com sucesso.', cartao: removed[0] });
+    res.json({ message: 'Cartão removido com sucesso.', cartao: paymentMethod });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao excluir cartão', details: error.message });
+  }
 });
 
 module.exports = router;

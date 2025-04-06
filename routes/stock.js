@@ -1,18 +1,8 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const Product = require('../models/Product'); // Importando a model Product
 const autenticarToken = require('../middleware/auth');
-
+const Company = require('../models/Company'); // Para validar a empresa
 const router = express.Router();
-const dataPath = path.join(__dirname, '../db/data.json');
-
-function readData() {
-  return JSON.parse(fs.readFileSync(dataPath));
-}
-
-function writeData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
 
 // Middleware para validar empresa
 function validarEmpresa(req, res, next) {
@@ -23,21 +13,25 @@ function validarEmpresa(req, res, next) {
 }
 
 // GET /stock - listar produtos com estoque da empresa logada
-router.get('/', autenticarToken, validarEmpresa, (req, res) => {
-  const data = readData();
-  const produtos = (data.products || []).filter(p => p.companyId === req.user.id);
+router.get('/', autenticarToken, validarEmpresa, async (req, res) => {
+  try {
+    // Buscar produtos da empresa logada
+    const produtos = await Product.find({ companyId: req.user.id });
 
-  const estoque = produtos.map(p => ({
-    id: p.id,
-    nome: p.name,
-    estoque: typeof p.estoque === 'number' ? p.estoque : null
-  }));
+    const estoque = produtos.map(p => ({
+      id: p._id,
+      nome: p.name,
+      estoque: p.estoque // Usando diretamente o campo estoque da model
+    }));
 
-  res.json(estoque);
+    res.json(estoque);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao listar estoque', details: error.message });
+  }
 });
 
 // PATCH /stock/:productId - atualizar estoque de um produto da empresa
-router.patch('/:productId', autenticarToken, validarEmpresa, (req, res) => {
+router.patch('/:productId', autenticarToken, validarEmpresa, async (req, res) => {
   const { productId } = req.params;
   const { estoque } = req.body;
 
@@ -45,34 +39,44 @@ router.patch('/:productId', autenticarToken, validarEmpresa, (req, res) => {
     return res.status(400).json({ error: 'Estoque deve ser um número igual ou maior que 0.' });
   }
 
-  const data = readData();
-  const produtos = data.products || [];
-  const produto = produtos.find(p => p.id == productId && p.companyId === req.user.id);
+  try {
+    // Verificar se o produto existe para a empresa logada
+    const produto = await Product.findOne({ _id: productId, companyId: req.user.id });
 
-  if (!produto) return res.status(404).json({ error: 'Produto não encontrado para esta empresa.' });
+    if (!produto) {
+      return res.status(404).json({ error: 'Produto não encontrado para esta empresa.' });
+    }
 
-  produto.estoque = estoque;
+    produto.estoque = estoque;
 
-  data.products = produtos;
-  writeData(data);
+    // Atualizar o estoque
+    await produto.save();
 
-  res.json({ message: 'Estoque atualizado com sucesso.', produto });
+    res.json({ message: 'Estoque atualizado com sucesso.', produto });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao atualizar estoque', details: error.message });
+  }
 });
 
 // DELETE /stock/:productId - remover produto da empresa logada
-router.delete('/:productId', autenticarToken, validarEmpresa, (req, res) => {
+router.delete('/:productId', autenticarToken, validarEmpresa, async (req, res) => {
   const { productId } = req.params;
-  const data = readData();
-  let produtos = data.products || [];
 
-  const index = produtos.findIndex(p => p.id == productId && p.companyId === req.user.id);
-  if (index === -1) return res.status(404).json({ error: 'Produto não encontrado para esta empresa.' });
+  try {
+    // Verificar se o produto existe para a empresa logada
+    const produto = await Product.findOne({ _id: productId, companyId: req.user.id });
 
-  const removido = produtos.splice(index, 1)[0];
-  data.products = produtos;
-  writeData(data);
+    if (!produto) {
+      return res.status(404).json({ error: 'Produto não encontrado para esta empresa.' });
+    }
 
-  res.json({ message: 'Produto removido do estoque com sucesso.', produto: removido });
+    // Remover o produto
+    await produto.remove();
+
+    res.json({ message: 'Produto removido do estoque com sucesso.', produto });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao remover produto', details: error.message });
+  }
 });
 
 module.exports = router;

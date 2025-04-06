@@ -1,43 +1,41 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const router = express.Router();
 
-const dataPath = path.join(__dirname, '../db/data.json');
+const User = require('../models/User'); // Modelo do usuário
+const UserCoupon = require('../models/UserCoupon'); // Modelo de cupons do usuário (se já existir ou criaremos depois)
 
-function readData() {
-  const raw = fs.readFileSync(dataPath);
-  return JSON.parse(raw);
-}
+const SECRET_KEY = process.env.SECRET_KEY; // Usando variável de ambiente para a chave secreta
 
-function writeData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
-
+// Gera código de convite com base no nome
 function gerarCodigoConvite(nome) {
   return nome.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 10000);
 }
 
-// GET all users
-router.get('/', (req, res) => {
-  const data = readData();
-  res.json(data.users || []);
+// GET - listar todos os usuários
+router.get('/', async (req, res) => {
+  try {
+    const users = await User.find();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar usuários.' });
+  }
 });
 
-// GET user by ID
-router.get('/:id', (req, res) => {
-  const data = readData();
-  const user = (data.users || []).find(u => u.id == req.params.id);
-  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-  res.json(user);
+// GET - buscar usuário por ID
+router.get('/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    res.json(user);
+  } catch (err) {
+    res.status(400).json({ error: 'ID inválido' });
+  }
 });
 
-// POST create user
+// POST - criar novo usuário
 router.post('/', async (req, res) => {
-  const data = readData();
-  const users = data.users || [];
-
   const {
     nome,
     email,
@@ -55,103 +53,105 @@ router.post('/', async (req, res) => {
 
   const tiposPermitidos = ['cliente', 'empresa', 'desenvolvimento'];
   if (!tiposPermitidos.includes(tipo)) {
-    return res.status(400).json({ error: 'Tipo de usuário inválido. Use cliente, empresa ou desenvolvimento.' });
+    return res.status(400).json({ error: 'Tipo de usuário inválido.' });
   }
 
-  const existente = users.find(u => u.email === email);
-  if (existente) {
-    return res.status(409).json({ error: 'Email já cadastrado.' });
-  }
+  try {
+    console.log('Tentando criar usuário com email:', email); // Log para depuração
 
-  const senhaHash = await bcrypt.hash(senha, 10);
-  const codigoConvite = gerarCodigoConvite(nome);
-
-  const newUser = {
-    id: Date.now(),
-    nome,
-    email,
-    senha: senhaHash,
-    endereco,
-    documento,
-    celular,
-    tipo,
-    codigoConvite
-  };
-
-  users.push(newUser);
-  data.users = users;
-
-  // Aplicar recompensa se foi indicado por outro usuário
-  if (codigoIndicadoPor) {
-    const indicadoPor = users.find(u => u.codigoConvite === codigoIndicadoPor);
-
-    if (indicadoPor) {
-      const cupomParaIndicado = {
-        id: Date.now().toString() + 'A',
-        userId: newUser.id,
-        code: "INDICOU10",
-        discount: "10%",
-        description: "Desconto por ter sido indicado por um amigo",
-        validUntil: "2025-12-31",
-        minValue: 30,
-        isActive: true,
-        price: 0,
-        usesLeft: 1,
-        maxUses: 1,
-        purchased: false
-      };
-
-      const cupomParaQuemIndicou = {
-        ...cupomParaIndicado,
-        id: Date.now().toString() + 'B',
-        userId: indicadoPor.id,
-        description: "Desconto por indicar um amigo"
-      };
-
-      data.userCoupons = data.userCoupons || [];
-      data.userCoupons.push(cupomParaIndicado, cupomParaQuemIndicou);
+    const existente = await User.findOne({ email });
+    if (existente) {
+      console.log('Email já cadastrado:', email); // Log para depuração
+      return res.status(409).json({ error: 'Email já cadastrado.' });
     }
+
+    const senhaHash = await bcrypt.hash(senha, 10);
+    const codigoConvite = gerarCodigoConvite(nome);
+
+    const newUser = new User({
+      nome,
+      email,
+      senha: senhaHash,
+      endereco,
+      documento,
+      celular,
+      tipo,
+      codigoConvite
+    });
+
+    await newUser.save();
+    console.log('Usuário criado com sucesso:', newUser); // Log para verificar o usuário criado
+
+    // Se foi indicado por alguém, aplicar recompensa (cupom)
+    if (codigoIndicadoPor) {
+      const indicadoPor = await User.findOne({ codigoConvite: codigoIndicadoPor });
+
+      if (indicadoPor) {
+        const cupomIndicado = new UserCoupon({
+          userId: newUser._id,
+          code: 'INDICOU10',
+          discount: '10%',
+          description: 'Desconto por ter sido indicado por um amigo',
+          validUntil: '2025-12-31',
+          minValue: 30,
+          isActive: true,
+          price: 0,
+          usesLeft: 1,
+          maxUses: 1,
+          purchased: false
+        });
+
+        const cupomQuemIndicou = new UserCoupon({
+          ...cupomIndicado.toObject(),
+          userId: indicadoPor._id,
+          description: 'Desconto por indicar um amigo'
+        });
+
+        await cupomIndicado.save();
+        await cupomQuemIndicou.save();
+      }
+    }
+
+    const token = jwt.sign(
+      { id: newUser._id, tipo: newUser.tipo, email: newUser.email },
+      SECRET_KEY,
+      { expiresIn: '2h' }
+    );
+
+    res.status(201).json({
+      id: newUser._id,
+      nome: newUser.nome,
+      email: newUser.email,
+      tipo: newUser.tipo,
+      codigoConvite: newUser.codigoConvite,
+      token // Retorna o token gerado
+    });
+  } catch (err) {
+    console.error('Erro ao criar o usuário:', err.message); // Log para depuração
+    res.status(500).json({ error: 'Erro ao criar o usuário.' });
   }
-
-  writeData(data);
-
-  res.status(201).json({
-    id: newUser.id,
-    nome,
-    email,
-    tipo,
-    codigoConvite: newUser.codigoConvite
-  });
 });
 
-// PATCH update user
-router.patch('/:id', (req, res) => {
-  const data = readData();
-  let users = data.users || [];
-
-  const index = users.findIndex(u => u.id == req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Usuário não encontrado' });
-
-  users[index] = { ...users[index], ...req.body };
-  data.users = users;
-  writeData(data);
-
-  res.json(users[index]);
+// PATCH - atualizar usuário
+router.patch('/:id', async (req, res) => {
+  try {
+    const updated = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updated) return res.status(404).json({ error: 'Usuário não encontrado' });
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: 'Erro ao atualizar usuário' });
+  }
 });
 
-// DELETE user
-router.delete('/:id', (req, res) => {
-  const data = readData();
-  let users = data.users || [];
-
-  const index = users.findIndex(u => u.id == req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Usuário não encontrado' });
-
-  const removed = users.splice(index, 1);
-  data.users = users;
-  writeData(data);
-
-  res.json({ message: 'Usuário removido com sucesso.', user: removed[0] });
+// DELETE - remover usuário
+router.delete('/:id', async (req, res) => {
+  try {
+    const removed = await User.findByIdAndDelete(req.params.id);
+    if (!removed) return res.status(404).json({ error: 'Usuário não encontrado' });
+    res.json({ message: 'Usuário removido com sucesso.', user: removed });
+  } catch (err) {
+    res.status(400).json({ error: 'Erro ao deletar usuário' });
+  }
 });
 
 module.exports = router;
