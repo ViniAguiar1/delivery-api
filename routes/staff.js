@@ -1,18 +1,8 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const Staff = require('../models/Staff');  // Importando o modelo Staff
 const autenticarToken = require('../middleware/auth');
 
 const router = express.Router();
-const dataPath = path.join(__dirname, '../db/data.json');
-
-function readData() {
-  return JSON.parse(fs.readFileSync(dataPath));
-}
-
-function writeData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
 
 // Middleware para validar empresa
 function validarEmpresa(req, res, next) {
@@ -23,79 +13,86 @@ function validarEmpresa(req, res, next) {
 }
 
 // GET - listar funcionários da empresa logada
-router.get('/', autenticarToken, validarEmpresa, (req, res) => {
-  const data = readData();
-  const funcionarios = (data.staff || []).filter(f => f.empresaId === req.user.id && f.ativo !== false);
-  res.json(funcionarios);
+router.get('/', autenticarToken, validarEmpresa, async (req, res) => {
+  try {
+    const staff = await Staff.find({ empresaId: req.user.id, ativo: true });  // Buscar funcionários ativos
+    res.json(staff);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar funcionários.' });
+  }
 });
 
 // POST - adicionar novo funcionário
-router.post('/', autenticarToken, validarEmpresa, (req, res) => {
-  const data = readData();
-  const staff = data.staff || [];
-
+router.post('/', autenticarToken, validarEmpresa, async (req, res) => {
   const { nome, email, telefone, cargo, placaVeiculo } = req.body;
 
   if (!nome || !email || !cargo) {
     return res.status(400).json({ error: 'Campos obrigatórios: nome, email e cargo.' });
   }
 
-  const novoFuncionario = {
-    id: Date.now().toString(),
-    nome,
-    email,
-    telefone: telefone || '',
-    cargo,
-    placaVeiculo: cargo === 'motoboy' ? placaVeiculo || '' : '',
-    empresaId: req.user.id,
-    ativo: true
-  };
+  try {
+    const novoFuncionario = new Staff({
+      nome,
+      email,
+      telefone: telefone || '',
+      cargo,
+      placaVeiculo: cargo === 'motoboy' ? placaVeiculo || '' : '',
+      empresaId: req.user.id,
+      ativo: true
+    });
 
-  staff.push(novoFuncionario);
-  data.staff = staff;
-  writeData(data);
-
-  res.status(201).json(novoFuncionario);
+    await novoFuncionario.save();  // Salvar o novo funcionário no banco
+    res.status(201).json(novoFuncionario);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao adicionar funcionário.' });
+  }
 });
 
 // PATCH - editar funcionário
-router.patch('/:id', autenticarToken, validarEmpresa, (req, res) => {
-  const data = readData();
-  const staff = data.staff || [];
-  const index = staff.findIndex(f => f.id === req.params.id && f.empresaId === req.user.id);
+router.patch('/:id', autenticarToken, validarEmpresa, async (req, res) => {
+  const { id } = req.params;
 
-  if (index === -1) {
-    return res.status(404).json({ error: 'Funcionário não encontrado.' });
+  try {
+    const funcionario = await Staff.findOneAndUpdate(
+      { _id: id, empresaId: req.user.id },
+      req.body,
+      { new: true }  // Retorna o documento atualizado
+    );
+
+    if (!funcionario) {
+      return res.status(404).json({ error: 'Funcionário não encontrado.' });
+    }
+
+    // Atualizar a placa de veículo somente se o cargo for 'motoboy'
+    if (funcionario.cargo === 'motoboy' && req.body.placaVeiculo) {
+      funcionario.placaVeiculo = req.body.placaVeiculo;
+    }
+
+    await funcionario.save();  // Salvar alterações no banco
+    res.json(funcionario);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao editar funcionário.' });
   }
-
-  const atual = staff[index];
-  staff[index] = {
-    ...atual,
-    ...req.body,
-    placaVeiculo: atual.cargo === 'motoboy' ? req.body.placaVeiculo || atual.placaVeiculo : ''
-  };
-
-  data.staff = staff;
-  writeData(data);
-
-  res.json(staff[index]);
 });
 
 // DELETE - desativar funcionário
-router.delete('/:id', autenticarToken, validarEmpresa, (req, res) => {
-  const data = readData();
-  const staff = data.staff || [];
-  const index = staff.findIndex(f => f.id === req.params.id && f.empresaId === req.user.id);
+router.delete('/:id', autenticarToken, validarEmpresa, async (req, res) => {
+  const { id } = req.params;
 
-  if (index === -1) {
-    return res.status(404).json({ error: 'Funcionário não encontrado.' });
+  try {
+    const funcionario = await Staff.findOne({ _id: id, empresaId: req.user.id });
+
+    if (!funcionario) {
+      return res.status(404).json({ error: 'Funcionário não encontrado.' });
+    }
+
+    funcionario.ativo = false;  // Marcar funcionário como inativo
+    await funcionario.save();  // Salvar no banco de dados
+
+    res.json({ message: 'Funcionário desativado com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao desativar funcionário.' });
   }
-
-  staff[index].ativo = false;
-  data.staff = staff;
-  writeData(data);
-
-  res.json({ message: 'Funcionário desativado com sucesso.' });
 });
 
 module.exports = router;

@@ -1,19 +1,10 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const NotificationSettings = require('../models/NotificationSettings');  // Importando a model NotificationSettings
 const autenticarToken = require('../middleware/auth');
 
 const router = express.Router();
-const dataPath = path.join(__dirname, '../db/data.json');
 
-function readData() {
-  return JSON.parse(fs.readFileSync(dataPath));
-}
-
-function writeData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
-
+// Função para gerar configurações padrão para novos usuários
 function getDefaultSettings(userId) {
   return {
     userId,
@@ -37,51 +28,58 @@ function getDefaultSettings(userId) {
 }
 
 // GET - buscar configurações do usuário
-router.get('/', autenticarToken, (req, res) => {
-  const data = readData();
-  const config = (data.notificationSettings || []).find(c => c.userId === req.user.id);
-  res.json(config || getDefaultSettings(req.user.id));
+router.get('/', autenticarToken, async (req, res) => {
+  try {
+    let config = await NotificationSettings.findOne({ userId: req.user.id });
+
+    if (!config) {
+      // Se não houver configurações, retorna as configurações padrão
+      config = getDefaultSettings(req.user.id);
+      res.json(config);
+    } else {
+      res.json(config);
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar configurações de notificações.' });
+  }
 });
 
 // POST - atualizar configurações
-router.patch('/', autenticarToken, (req, res) => {
-  const data = readData();
-  data.notificationSettings = data.notificationSettings || [];
+router.patch('/', autenticarToken, async (req, res) => {
+  try {
+    let updatedConfig = await NotificationSettings.findOneAndUpdate(
+      { userId: req.user.id }, // Encontrar configuração pela ID do usuário
+      { $set: req.body },  // Atualizar com os dados enviados
+      { new: true, upsert: true } // Se não existir, cria uma nova configuração
+    );
 
-  const index = data.notificationSettings.findIndex(c => c.userId === req.user.id);
-
-  const updated = {
-    userId: req.user.id,
-    ...getDefaultSettings(req.user.id), // estrutura base
-    ...req.body                        // sobrescreve com o que foi enviado
-  };
-
-  if (index >= 0) {
-    data.notificationSettings[index] = updated;
-  } else {
-    data.notificationSettings.push(updated);
+    res.json({
+      message: 'Preferências de notificação atualizadas.',
+      config: updatedConfig
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao atualizar as configurações.' });
   }
-
-  writeData(data);
-  res.json({ message: 'Preferências de notificação atualizadas.', config: updated });
 });
 
 // POST - restaurar configurações padrão
-router.post('/reset', autenticarToken, (req, res) => {
-  const data = readData();
-  data.notificationSettings = data.notificationSettings || [];
+router.post('/reset', autenticarToken, async (req, res) => {
+  try {
+    const defaultConfig = getDefaultSettings(req.user.id);
 
-  const defaultConfig = getDefaultSettings(req.user.id);
-  const index = data.notificationSettings.findIndex(c => c.userId === req.user.id);
+    let updatedConfig = await NotificationSettings.findOneAndUpdate(
+      { userId: req.user.id },
+      { $set: defaultConfig },
+      { new: true, upsert: true }
+    );
 
-  if (index >= 0) {
-    data.notificationSettings[index] = defaultConfig;
-  } else {
-    data.notificationSettings.push(defaultConfig);
+    res.json({
+      message: 'Configurações restauradas com sucesso.',
+      config: updatedConfig
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao restaurar configurações padrão.' });
   }
-
-  writeData(data);
-  res.json({ message: 'Configurações restauradas com sucesso.', config: defaultConfig });
 });
 
 module.exports = router;

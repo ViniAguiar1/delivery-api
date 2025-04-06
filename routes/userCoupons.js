@@ -1,102 +1,74 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const autenticarToken = require('../middleware/auth');
-
 const router = express.Router();
-const dataPath = path.join(__dirname, '../db/data.json');
 
-function readData() {
-  const raw = fs.readFileSync(dataPath);
-  return JSON.parse(raw);
-}
+const UserCoupon = require('../models/UserCoupon');
+const Coupon = require('../models/Coupon'); // para pegar cupons do sistema
 
-function writeData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
-
-// GET - listar cupons do usuário
-router.get('/', autenticarToken, (req, res) => {
-  const data = readData();
-  const userCoupons = (data.userCoupons || []).filter(c => c.userId === req.user.id);
-  res.json(userCoupons);
+// GET - listar cupons do usuário logado
+router.get('/', autenticarToken, async (req, res) => {
+  try {
+    const cupons = await UserCoupon.find({ userId: req.user.id });
+    res.json(cupons);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar cupons.' });
+  }
 });
 
 // POST - adicionar cupom do sistema ao usuário
-router.post('/:couponId', autenticarToken, (req, res) => {
-  const data = readData();
-  const coupons = data.coupons || [];
-  const userCoupons = data.userCoupons || [];
+router.post('/:couponId', autenticarToken, async (req, res) => {
+  try {
+    const base = await Coupon.findById(req.params.couponId);
+    if (!base) return res.status(404).json({ error: 'Cupom do sistema não encontrado.' });
 
-  const couponId = req.params.couponId;
-  const baseCoupon = coupons.find(c => c.id === couponId);
+    const existe = await UserCoupon.findOne({ userId: req.user.id, code: base.code });
+    if (existe) return res.status(409).json({ error: 'Esse cupom já está vinculado ao seu perfil.' });
 
-  if (!baseCoupon) {
-    return res.status(404).json({ error: 'Cupom do sistema não encontrado.' });
+    const novo = new UserCoupon({
+      userId: req.user.id,
+      code: base.code,
+      discount: base.discount,
+      description: base.description,
+      validUntil: req.body.validUntil || null,
+      minValue: base.minValue,
+      isActive: base.isActive,
+      price: req.body.price || 0,
+      usesLeft: req.body.usesLeft || 1,
+      maxUses: req.body.maxUses || 1,
+      purchased: req.body.purchased || false
+    });
+
+    await novo.save();
+    res.status(201).json(novo);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao adicionar cupom.' });
   }
-
-  const alreadyAdded = userCoupons.find(
-    c => c.userId === req.user.id && c.code === baseCoupon.code
-  );
-
-  if (alreadyAdded) {
-    return res.status(409).json({ error: 'Esse cupom já está vinculado ao seu perfil.' });
-  }
-
-  const newUserCoupon = {
-    id: Date.now().toString(),
-    userId: req.user.id,
-    code: baseCoupon.code,
-    discount: baseCoupon.discount,
-    description: baseCoupon.description,
-    minValue: baseCoupon.minValue,
-    isActive: baseCoupon.isActive,
-    validUntil: req.body.validUntil || null,
-    price: req.body.price || 0,
-    usesLeft: req.body.usesLeft || 1,
-    maxUses: req.body.maxUses || 1,
-    purchased: req.body.purchased || false
-  };
-
-  userCoupons.push(newUserCoupon);
-  data.userCoupons = userCoupons;
-  writeData(data);
-
-  res.status(201).json(newUserCoupon);
 });
 
-// PATCH - atualizar cupom do usuário
-router.patch('/:id', autenticarToken, (req, res) => {
-  const data = readData();
-  const userCoupons = data.userCoupons || [];
-
-  const index = userCoupons.findIndex(c => c.id === req.params.id && c.userId === req.user.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Cupom do usuário não encontrado.' });
+// PATCH - atualizar dados do cupom do usuário
+router.patch('/:id', autenticarToken, async (req, res) => {
+  try {
+    const atualizado = await UserCoupon.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      req.body,
+      { new: true }
+    );
+    if (!atualizado) return res.status(404).json({ error: 'Cupom não encontrado.' });
+    res.json(atualizado);
+  } catch {
+    res.status(400).json({ error: 'ID inválido ou erro ao atualizar.' });
   }
-
-  userCoupons[index] = { ...userCoupons[index], ...req.body };
-  data.userCoupons = userCoupons;
-  writeData(data);
-
-  res.json(userCoupons[index]);
 });
 
 // DELETE - remover cupom do usuário
-router.delete('/:id', autenticarToken, (req, res) => {
-  const data = readData();
-  const userCoupons = data.userCoupons || [];
-
-  const index = userCoupons.findIndex(c => c.id === req.params.id && c.userId === req.user.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Cupom do usuário não encontrado.' });
+router.delete('/:id', autenticarToken, async (req, res) => {
+  try {
+    const removido = await UserCoupon.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
+    if (!removido) return res.status(404).json({ error: 'Cupom não encontrado.' });
+    res.json({ message: 'Cupom removido com sucesso', cupom: removido });
+  } catch {
+    res.status(400).json({ error: 'Erro ao deletar cupom.' });
   }
-
-  const removed = userCoupons.splice(index, 1);
-  data.userCoupons = userCoupons;
-  writeData(data);
-
-  res.json({ message: 'Cupom removido com sucesso', cupom: removed[0] });
 });
 
 module.exports = router;

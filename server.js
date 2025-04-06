@@ -1,7 +1,13 @@
 const express = require('express');
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger/swagger.json');
 
+// Carrega variáveis de ambiente
+dotenv.config();
+
+// Rotas
 const usersRouter = require('./routes/users');
 const productsRouter = require('./routes/products');
 const categoriesRouter = require('./routes/categories');
@@ -28,6 +34,18 @@ const companyBlockRoutes = require('./routes/companyBlock');
 const app = express();
 app.use(express.json());
 
+// 🔌 Conexão com MongoDB Atlas
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log('🟢 Conectado ao MongoDB Atlas'))
+.catch(err => {
+  console.error('🔴 Erro ao conectar ao MongoDB:', err.message);
+  process.exit(1);
+});
+
+// 🧩 Registro de rotas
 app.use('/api/users', usersRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/categories', categoriesRouter);
@@ -50,9 +68,12 @@ app.use('/api/staff', staffRouter);
 app.use('/api/stock', stockRoutes);
 app.use('/api/user-reviews', userReviewsRoutes);
 app.use('/api/companies', companyBlockRoutes);
+
+// 📘 Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-const PORT = 3000;
+// 🚀 Inicia servidor
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 });
