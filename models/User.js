@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Pré-salvamento: garantir que a senha seja criptografada antes de salvar
+/* // Pré-salvamento: garantir que a senha seja criptografada antes de salvar
 userSchema.pre('save', async function(next) {
   if (this.isModified('senha')) {
     console.log('Criptografando senha para o usuário:', this.email); // Log para depuração
@@ -27,5 +27,5 @@ userSchema.pre('save', async function(next) {
   }
   next();
 });
-
+ */
 module.exports = mongoose.model('User', userSchema);
